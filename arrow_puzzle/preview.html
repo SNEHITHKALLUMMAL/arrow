@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Arrow Puzzle — Clear the Board</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#F0F2F5;--surface:#fff;--text:#0D1B3E;--muted:#8899AA;--primary:#2979FF;--success:#43B581;--error:#E53935;--hint:#2979FF;--dot:#C5CCD6;--arrow:#0D1B3E;--radius:16px}
+[data-theme=dark]{--bg:#0F1729;--surface:#1A2340;--text:#E8EDF5;--muted:#6B7A90;--primary:#5B9BFF;--dot:#3A4A60;--arrow:#E8EDF5}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center}
+.screen{display:none;width:100%;max-width:520px;flex:1;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+.home{align-items:center;justify-content:center;gap:20px;padding:24px}
+.home-icon{width:90px;height:90px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(41,121,255,0.35)}
+.home-icon svg{width:42px;height:42px;color:#fff}
+.home h1{font-size:32px;font-weight:900;text-align:center}
+.play-btn{width:100%;max-width:320px;padding:16px;border:none;border-radius:18px;background:var(--primary);color:#fff;font-family:inherit;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 6px 24px rgba(41,121,255,0.3);transition:transform .15s}
+.play-btn:hover{transform:translateY(-2px)}
+.diff-header{display:flex;align-items:center;padding:12px 16px;gap:12px}
+.diff-header h3{flex:1;text-align:center;font-size:20px;font-weight:700}
+.back-btn{background:none;border:none;font-size:24px;cursor:pointer;color:var(--text);padding:8px;border-radius:12px}
+.diff-cards{display:flex;flex-direction:column;gap:12px;padding:0 20px;overflow-y:auto;flex:1}
+.diff-card{padding:20px;border-radius:16px;border:2px solid var(--dot);background:var(--surface);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:16px}
+.diff-card:hover{transform:scale(1.02);border-color:var(--primary)}
+.diff-card .diff-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.diff-card .diff-info h4{font-size:17px;font-weight:700}
+.diff-card .diff-info p{font-size:12px;color:var(--muted);margin-top:2px}
+.diff-card .diff-count{margin-left:auto;font-size:13px;font-weight:600;color:var(--primary)}
+.diff-easy .diff-icon{background:#E8F5E9;color:#43B581}
+.diff-hard .diff-icon{background:#FFF3E0;color:#FF9800}
+.diff-insane .diff-icon{background:#FFEBEE;color:#E53935}
+.levels-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 16px;overflow-y:auto;flex:1}
+.level-tile{aspect-ratio:1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;border:2px solid transparent;background:var(--surface);transition:all .15s;position:relative}
+.level-tile:hover:not(.locked){transform:scale(1.06);border-color:var(--primary)}
+.level-tile.locked{opacity:.3;cursor:default;background:rgba(0,0,0,0.03)}
+.level-tile.done{border-color:rgba(67,181,129,0.3);background:rgba(67,181,129,0.06)}
+.level-tile .stars{font-size:8px;position:absolute;bottom:3px}
+.game{padding:0}
+.game-topbar{display:flex;align-items:center;padding:10px 12px;gap:8px}
+.game-title{flex:1;text-align:center;font-size:18px;font-weight:700}
+.game-info{display:flex;align-items:center;justify-content:space-between;padding:0 16px 4px;font-size:12px;color:var(--muted)}
+.game-info .arrows-count{display:flex;align-items:center;gap:5px;background:var(--surface);padding:4px 10px;border-radius:8px;font-weight:600;color:var(--text)}
+.game-info .lives{display:flex;gap:3px}
+.game-info .lives span{font-size:18px}
+.game-info .difficulty{background:var(--surface);padding:4px 10px;border-radius:8px;font-weight:600;color:var(--text)}
+.board-area{flex:1;display:flex;align-items:center;justify-content:center;padding:8px 12px}
+.board-container{position:relative;width:100%;aspect-ratio:1;max-height:100%}
+.board-dots{position:absolute;inset:0;display:grid;gap:0}
+.dot-cell{display:flex;align-items:center;justify-content:center}
+.dot-cell::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--dot);opacity:.45}
+.arrow-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.game-bottom{display:flex;justify-content:center;gap:24px;padding:14px 24px 24px}
+.circle-btn{width:56px;height:56px;border-radius:50%;border:2px solid var(--dot);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .15s}
+.circle-btn:hover{border-color:var(--primary);transform:scale(1.05)}
+.circle-btn .icon{font-size:22px}
+.circle-btn .badge{position:absolute;top:-4px;right:-4px;background:var(--primary);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:100}
+.overlay.show{display:flex}
+.overlay-card{background:var(--surface);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:90%;animation:pop .35s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.overlay-card h2{font-size:26px;margin-bottom:4px}
+.overlay-card p{color:var(--muted);margin-bottom:20px;font-size:13px}
+.win-stars{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.win-stars span{font-size:40px;opacity:.15;transition:all .3s}
+.win-stars span.earned{opacity:1}
+.overlay-btns{display:flex;gap:10px;justify-content:center}
+.o-btn{padding:12px 22px;border-radius:14px;border:none;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s}
+.o-btn:hover{transform:translateY(-1px)}
+.o-btn.primary{background:var(--primary);color:#fff}
+.o-btn.secondary{background:rgba(0,0,0,0.05);color:var(--text)}
+.confetti{position:fixed;width:8px;height:8px;border-radius:2px;animation:fall 1.8s ease-out forwards;z-index:200;pointer-events:none}
+@keyframes fall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.theme-toggle{position:fixed;top:10px;right:10px;z-index:50;width:34px;height:34px;border-radius:10px;border:1px solid var(--dot);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px}
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+<div id="home" class="screen active"><div class="home"><div class="home-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div><h1>Clear<br>the Board</h1><button class="play-btn" onclick="show('difficulty')">▶ Play</button><div style="display:flex;gap:12px;width:100%;max-width:320px"><div style="flex:1;background:var(--surface);border-radius:var(--radius);padding:12px 8px;text-align:center;border:1px solid var(--dot)"><div style="font-size:22px;font-weight:800" id="h-done">0</div><div style="font-size:10px;color:var(--muted)">Done</div></div><div style="flex:1;background:var(--surface);border-radius:var(--radius);padding:12px 8px;text-align:center;border:1px solid var(--dot)"><div style="font-size:22px;font-weight:800" id="h-stars">0</div><div style="font-size:10px;color:var(--muted)">Stars</div></div><div style="flex:1;background:var(--surface);border-radius:var(--radius);padding:12px 8px;text-align:center;border:1px solid var(--dot)"><div style="font-size:22px;font-weight:800" id="h-hints">5</div><div style="font-size:10px;color:var(--muted)">Hints</div></div></div></div></div>
+<div id="difficulty" class="screen"><div class="diff-header"><button class="back-btn" onclick="show('home')">←</button><h3>Select Difficulty</h3><div style="width:40px"></div></div><div class="diff-cards"><div class="diff-card diff-easy" onclick="showLevels('easy')"><div class="diff-icon">🌱</div><div class="diff-info"><h4>Easy</h4><p>Learn the basics — simple patterns</p></div><div class="diff-count">100 levels</div></div><div class="diff-card diff-hard" onclick="showLevels('hard')"><div class="diff-icon">🔥</div><div class="diff-info"><h4>Hard</h4><p>Complex chains — plan your moves</p></div><div class="diff-count">100 levels</div></div><div class="diff-card diff-insane" onclick="showLevels('insane')"><div class="diff-icon">💀</div><div class="diff-info"><h4>Insane</h4><p>Extreme puzzles — only for experts</p></div><div class="diff-count">100 levels</div></div></div></div>
+<div id="levels" class="screen"><div class="diff-header"><button class="back-btn" onclick="show('difficulty')">←</button><h3 id="levels-title">Easy</h3><div style="width:40px"></div></div><div class="levels-grid" id="levels-grid"></div></div>
+<div id="game" class="screen game"><div class="game-topbar"><button class="back-btn" onclick="show('levels')">←</button><div class="game-title" id="g-title">Level 1</div><div style="width:32px"></div></div><div class="game-info"><div class="arrows-count"><span>↗</span> <span id="g-arrow-num">0</span></div><div class="lives" id="g-lives"></div><div class="difficulty" id="g-diff">Easy</div></div><div class="board-area"><div class="board-container"><div class="board-dots" id="board-dots"></div><svg class="arrow-svg" id="arrow-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg></div></div><div class="game-bottom"><div class="circle-btn" onclick="useHint()"><span class="icon">💡</span><div class="badge" id="hint-badge">5</div></div><div class="circle-btn" onclick="show('levels')"><span class="icon">#</span></div></div></div>
+<div class="overlay" id="overlay-win"><div class="overlay-card"><h2 style="color:var(--success)">Level Complete!</h2><p id="win-info"></p><div class="win-stars" id="win-stars"></div><div class="overlay-btns"><button class="o-btn secondary" onclick="show('home')">🏠</button><button class="o-btn secondary" onclick="replay()">🔄</button><button class="o-btn primary" onclick="nextLevel()">Next ▶</button></div></div></div>
+<div class="overlay" id="overlay-lose"><div class="overlay-card"><h2 style="color:var(--error)">Out of Lives!</h2><p id="lose-info"></p><div class="overlay-btns"><button class="o-btn secondary" onclick="show('home')">🏠</button><button class="o-btn primary" onclick="replay()">🔄 Retry</button></div></div></div>
+<script>
+const DIRS=[[-1,0],[1,0],[0,-1],[0,1]];
+let currentDiff='easy',currentLevel=null,board=[],lives=0,wrongMoves=0,animating=false;
+let progress=loadP();
+function loadP(){try{return JSON.parse(localStorage.getItem('ap7'))||{unlocked:{easy:1,hard:1,insane:1},completed:{},stars:{},hints:5}}catch{return{unlocked:{easy:1,hard:1,insane:1},completed:{},stars:{},hints:5}}}
+function saveP(){localStorage.setItem('ap7',JSON.stringify(progress))}
+function totalStars(){return Object.values(progress.stars).reduce((a,b)=>a+b,0)}
+
+// ══════════════════════════════════════════════════════════════
+// LEVEL GENERATOR
+// ══════════════════════════════════════════════════════════════
+function genLevel(diff,localId){
+  const gid=diff==='easy'?localId:diff==='hard'?localId+100:localId+200;
+  let rows,cols,density,maxLives;
+  if(diff==='easy'){
+    if(localId<=5){rows=3;cols=3;density=0.3;maxLives=3}
+    else if(localId<=20){rows=3;cols=3;density=0.65;maxLives=3}
+    else if(localId<=35){rows=3;cols=4;density=0.6;maxLives=3}
+    else if(localId<=50){rows=4;cols=4;density=0.5;maxLives=3}
+    else if(localId<=65){rows=4;cols=4;density=0.7;maxLives=3}
+    else if(localId<=80){rows=4;cols=5;density=0.55;maxLives=3}
+    else{rows=5;cols=4;density=0.6;maxLives=3}
+  }else if(diff==='hard'){
+    if(localId<=15){rows=5;cols=5;density=0.5;maxLives=3}
+    else if(localId<=30){rows=5;cols=5;density=0.68;maxLives=3}
+    else if(localId<=45){rows=6;cols=5;density=0.6;maxLives=3}
+    else if(localId<=60){rows=6;cols=6;density=0.5;maxLives=2}
+    else if(localId<=75){rows=6;cols=6;density=0.67;maxLives=2}
+    else if(localId<=90){rows=7;cols=6;density=0.55;maxLives=2}
+    else{rows=7;cols=7;density=0.5;maxLives=2}
+  }else{
+    if(localId<=15){rows=7;cols=7;density=0.55;maxLives=2}
+    else if(localId<=30){rows=7;cols=7;density=0.7;maxLives=2}
+    else if(localId<=45){rows=8;cols=7;density=0.55;maxLives=2}
+    else if(localId<=60){rows=8;cols=8;density=0.5;maxLives=2}
+    else if(localId<=75){rows=8;cols=8;density=0.62;maxLives=2}
+    else if(localId<=90){rows=9;cols=8;density=0.52;maxLives=2}
+    else{rows=9;cols=9;density=Math.min(0.65,0.48+localId*0.002);maxLives=2}
+  }
+  const target=Math.floor(rows*cols*density);
+  const seed=gid*7919+13;let s=seed;
+  function rng(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}
+  const b=Array.from({length:rows},()=>Array(cols).fill(null));
+  const placed=[];let att=0;
+  while(placed.length<target&&att<15000){att++;
+    const r=Math.floor(rng()*rows),c=Math.floor(rng()*cols);
+    if(b[r][c])continue;
+    const dirs=[0,1,2,3].sort(()=>rng()-0.5);
+    let ok=false;
+    for(const d of dirs){const[dr,dc]=DIRS[d];let nr=r+dr,nc=c+dc,bl=false;
+      while(nr>=0&&nr<rows&&nc>=0&&nc<cols){if(b[nr][nc]){bl=true;break}nr+=dr;nc+=dc}
+      if(!bl){const path=makePath(d,r,c,rows,cols,rng,b,localId);b[r][c]={d,r,c,path};placed.push(b[r][c]);ok=true;break}
+    }
+    if(!ok&&placed.length>2&&rng()<0.3){
+      const ref=placed[Math.floor(rng()*placed.length)];
+      for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]].sort(()=>rng()-0.5)){
+        const nr=ref.r+dr,nc=ref.c+dc;
+        if(nr>=0&&nr<rows&&nc>=0&&nc<cols&&!b[nr][nc]){
+          for(const d of[0,1,2,3].sort(()=>rng()-0.5)){
+            const[d2r,d2c]=DIRS[d];let rr=nr+d2r,cc=nc+d2c,bl2=false;
+            while(rr>=0&&rr<rows&&cc>=0&&cc<cols){if(b[rr][cc]){bl2=true;break}rr+=d2r;cc+=d2c}
+            if(!bl2){const path=makePath(d,nr,nc,rows,cols,rng,b,localId);b[nr][nc]={d,r:nr,c:nc,path};placed.push(b[nr][nc]);ok=true;break}
+          }
+          if(ok)break;
+        }
+      }
+    }
+  }
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    if(b[r][c]||placed.length>=target)continue;
+    for(const d of[0,1,2,3].sort(()=>rng()-0.5)){
+      const[dr,dc]=DIRS[d];let nr=r+dr,nc=c+dc,ok2=true;
+      while(nr>=0&&nr<rows&&nc>=0&&nc<cols){if(b[nr][nc]){ok2=false;break}nr+=dr;nc+=dc}
+      if(ok2){const path=makePath(d,r,c,rows,cols,rng,b,localId);b[r][c]={d,r,c,path};placed.push(b[r][c]);break}
+    }
+  }
+  return{id:gid,localId,diff,rows,cols,lives:maxLives,arrows:placed};
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATH SHAPES — 10 different arrow types
+// ══════════════════════════════════════════════════════════════
+function makePath(d,r,c,rows,cols,rng,board,difficulty){
+  const[dr,dc]=DIRS[d];
+  const head={r,c};
+  const perp=d<2?[2,3]:[0,1];
+  const opp=d<2?d^1:d^1; // opposite direction index
+  const[odr,odc]=DIRS[opp];
+
+  // Helper: check cell is in bounds and empty
+  function ok(r2,c2){return r2>=0&&r2<rows&&c2>=0&&c2<cols&&!board[r2][c2]}
+  // Helper: get perpendicular directions
+  function pDirs(){return perp}
+  // Helper: random perpendicular
+  function rp(){return perp[Math.floor(rng()*2)]}
+
+  const shape=Math.floor(rng()*10);
+
+  switch(shape){
+    case 0:{ // STRAIGHT SHORT — just head, tiny stem
+      const sr=r-odr,sc=c-odc;
+      if(ok(sr,sc))return{pts:[{r:sr,c:sc},head],type:'straight-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 1:{ // STRAIGHT LONG — head + 2-3 cells back
+      const pts=[head];
+      let pr=r-odr,pc=c-odc;
+      for(let i=0;i<3;i++){if(ok(pr,pc)){pts.unshift({r:pr,c:pc});pr-=odr;pc-=odc}else break}
+      return{pts,type:'straight-l'};
+    }
+    case 2:{ // L-BEND SHORT — approach from perpendicular
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br=r+bdr,bc=c+bdc;
+      if(ok(br,bc))return{pts:[{r:br,c:bc},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 3:{ // L-BEND LONG — perpendicular approach, 2 cells
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br=r+bdr,bc=c+bdc;
+      const sr=br+bdr,sc=bc+bdc;
+      if(ok(br,bc)&&ok(sr,sc))return{pts:[{r:sr,c:sc},{r:br,c:bc},head],type:'l-l'};
+      if(ok(br,bc))return{pts:[{r:br,c:bc},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 4:{ // ZIGZAG — perpendicular then opposite
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br1=r+bdr,bc1=c+bdc;
+      const br2=br1-odr,bc2=bc1-odc;
+      if(ok(br1,bc1)&&ok(br2,bc2))return{pts:[{r:br2,c:bc2},{r:br1,c:bc1},head],type:'zigzag'};
+      if(ok(br1,bc1))return{pts:[{r:br1,c:bc1},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 5:{ // U-TURN — goes past head then loops back
+      const br1=r+dr,bc1=c+dc;
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br2=br1+bdr,bc2=bc1+bdc;
+      if(ok(br1,bc1)&&ok(br2,bc2))return{pts:[{r:br2,c:bc2},{r:br1,c:bc1},head],type:'u-turn'};
+      if(ok(br1,bc1))return{pts:[{r:br1,c:bc1},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 6:{ // S-CURVE — two perpendicular bends
+      const bd1=perp[0],bd2=perp[1];
+      const[bdr1,bdc1]=DIRS[bd1];
+      const[bdr2,bdc2]=DIRS[bd2];
+      const br1=r+bdr1,bc1=c+bdc1;
+      const br2=r+bdr2,bc2=c+bdc2;
+      if(ok(br1,bc1)&&ok(br2,bc2)){
+        const mr=br1,mc=bc2;
+        if(ok(mr,mc))return{pts:[{r:br1,c:bc1},{r:mr,c:mc},{r:br2,c:bc2},head],type:'s-curve'};
+        return{pts:[{r:br1,c:bc1},{r:br2,c:bc2},head],type:'zigzag'};
+      }
+      if(ok(br1,bc1))return{pts:[{r:br1,c:bc1},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 7:{ // HOOK — L-bend + extra cell in arrow direction
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br=r+bdr,bc=c+bdc;
+      const fr=br-dr,fc=bc-dc;
+      if(ok(br,bc)&&ok(fr,fc))return{pts:[{r:fr,c:fc},{r:br,c:bc},head],type:'hook'};
+      if(ok(br,bc))return{pts:[{r:br,c:bc},head],type:'l-s'};
+      return{pts:[head],type:'dot'};
+    }
+    case 8:{ // STAIRCASE — 3 steps
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br1=r+bdr,bc1=c+bdc;
+      const br2=br1-odr,bc2=bc1-odc;
+      const br3=br2+bdr,bc3=bc2+bdc;
+      if(ok(br1,bc1)&&ok(br2,bc2)&&ok(br3,bc3))return{pts:[{r:br3,c:bc3},{r:br2,c:bc2},{r:br1,c:bc1},head],type:'stair'};
+      if(ok(br1,bc1)&&ok(br2,bc2))return{pts:[{r:br2,c:bc2},{r:br1,c:bc1},head],type:'zigzag'};
+      return{pts:[head],type:'dot'};
+    }
+    case 9:{ // SPIRAL — approach, turn, turn again
+      const bd=rp();const[bdr,bdc]=DIRS[bd];
+      const br1=r+bdr,bc1=c+bdc;
+      const br2=br1+odr,bc2=bc1+odc;
+      const br3=br2-bdr,bc3=bc2-bdc;
+      if(ok(br1,bc1)&&ok(br2,bc2)&&ok(br3,bc3))return{pts:[{r:br3,c:bc3},{r:br2,c:bc2},{r:br1,c:bc1},head],type:'spiral'};
+      if(ok(br1,bc1)&&ok(br2,bc2))return{pts:[{r:br2,c:bc2},{r:br1,c:bc1},head],type:'zigzag'};
+      return{pts:[head],type:'dot'};
+    }
+  }
+  return{pts:[head],type:'dot'};
+}
+
+// ══════════════════════════════════════════════════════════════
+// GAME LOGIC
+// ══════════════════════════════════════════════════════════════
+function canRemove(r,c){const a=board[r]?.[c];if(!a)return false;const[dr,dc]=DIRS[a.d];let nr=r+dr,nc=c+dc;while(nr>=0&&nr<currentLevel.rows&&nc>=0&&nc<currentLevel.cols){if(board[nr][nc])return false;nr+=dr;nc+=dc}return true}
+function countRemaining(){let n=0;for(const row of board)for(const c of row)if(c)n++;return n}
+function findBestHint(){let best=null,bs=-1;for(let r=0;r<currentLevel.rows;r++)for(let c=0;c<currentLevel.cols;c++){if(!board[r][c]||!canRemove(r,c))continue;const saved=board[r][c];board[r][c]=null;let freed=0;for(let r2=0;r2<currentLevel.rows;r2++)for(let c2=0;c2<currentLevel.cols;c2++)if(board[r2][c2]&&canRemove(r2,c2))freed++;board[r][c]=saved;if(freed>bs){bs=freed;best={r,c}}}return best}
+
+// AUDIO + CONFETTI
+let actx;function audio(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx}
+function snd(t){try{const c=audio(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);if(t==='remove'){o.frequency.value=440;o.type='sine';o.frequency.exponentialRampToValueAtTime(880,c.currentTime+.12);g.gain.value=.12;g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.18);o.start();o.stop(c.currentTime+.18)}else if(t==='error'){o.frequency.value=180;o.type='sawtooth';g.gain.value=.08;g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.start();o.stop(c.currentTime+.25)}else if(t==='win'){o.frequency.value=523;o.type='sine';g.gain.value=.12;g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.start();o.stop(c.currentTime+.25)}}catch{}}
+function confetti(){const cols=['#2979FF','#E53935','#43B581','#FFB347','#FFD700','#E040FB'];for(let i=0;i<50;i++){const el=document.createElement('div');el.className='confetti';el.style.cssText=`left:${Math.random()*100}vw;top:-10px;background:${cols[i%6]};animation-duration:${1+Math.random()}s;animation-delay:${Math.random()*.4}s;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px`;document.body.appendChild(el);setTimeout(()=>el.remove(),2500)}}
+
+// ══════════════════════════════════════════════════════════════
+// RENDERING — thick stem + small arrowhead
+// ══════════════════════════════════════════════════════════════
+function renderDots(){
+  const el=document.getElementById('board-dots');
+  el.style.gridTemplateColumns=`repeat(${currentLevel.cols},1fr)`;
+  el.style.gridTemplateRows=`repeat(${currentLevel.rows},1fr)`;
+  el.innerHTML='';
+  for(let i=0;i<currentLevel.rows*currentLevel.cols;i++){const d=document.createElement('div');d.className='dot-cell';el.appendChild(d)}
+}
+
+function renderArrows(){
+  const svg=document.getElementById('arrow-svg');
+  const R=currentLevel.rows,C=currentLevel.cols;
+  const W=1000/C,H=1000/R;    // Clean ----> style: visible stem + clear arrowhead
+    const sw=Math.min(W,H)*0.065;  // medium stem
+    const hl=Math.min(W,H)*0.22;   // visible arrowhead
+    const hw=sw*1.4;               // arrowhead wider than stem
+  let html='';
+
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const arrow=board[r]?.[c];if(!arrow)continue;
+    const d=arrow.d;
+    const[dr,dc]=DIRS[d];
+    const cx=c*W+W/2,cy=r*H+H/2;
+
+    // ── Small arrowhead triangle ──
+    const tipX=cx+dc*hl,tipY=cy+dr*hl;
+    const bX=cx-dc*hl*0.2,bY=cy-dr*hl*0.2;
+    const px=-dr,py=dc;
+    const headPts=`${tipX},${tipY} ${bX+px*hw},${bY+py*hw} ${bX-px*hw},${bY-py*hw}`;
+
+    // ── Thick stem path ──
+    const path=arrow.path;
+    let pathD='';
+    if(path&&path.pts&&path.pts.length>1){
+      const pts=path.pts.map(p=>({x:p.c*W+W/2,y:p.r*H+H/2}));
+      // Add head cell center as endpoint
+      pts.push({x:bX,y:bY});
+      // Extend stem LONG from first point backward
+      if(pts.length>=2){
+        const dx=pts[0].x-pts[1].x,dy=pts[0].y-pts[1].y;
+        const len=Math.sqrt(dx*dx+dy*dy)||1;
+        // Extend much further — 1.5 cells worth
+        pts[0]={x:Math.max(5,Math.min(995,pts[0].x+dx/len*W*1.5)),y:Math.max(5,Math.min(995,pts[0].y+dy/len*H*1.5))};
+      }
+      pathD='M'+pts.map(p=>`${p.x},${p.y}`).join(' L');
+    }else{
+      // Long straight stem extending back
+      const sx=cx-dc*W*1.5,sy=cy-dr*H*1.5;
+      pathD=`M${sx},${sy} L${bX},${bY}`;
+    }
+
+    html+=`<g class="arrow-group" data-r="${r}" data-c="${c}" style="pointer-events:all;cursor:pointer" onclick="tapArrow(${r},${c})">`;
+    html+=`<path d="${pathD}" stroke="var(--arrow)" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" fill="none" style="transition:stroke .3s"/>`;
+    html+=`<polygon points="${headPts}" fill="var(--arrow)" style="transition:fill .3s"/>`;
+    html+=`<rect x="${c*W}" y="${r*H}" width="${W}" height="${H}" fill="transparent"/>`;
+    html+=`</g>`;
+  }
+  svg.innerHTML=html;
+}
+
+function updateInfo(){
+  document.getElementById('g-title').textContent=`Level ${currentLevel.localId}`;
+  document.getElementById('g-arrow-num').textContent=countRemaining();
+  document.getElementById('g-diff').textContent=currentLevel.diff.charAt(0).toUpperCase()+currentLevel.diff.slice(1);
+  document.getElementById('g-lives').innerHTML=Array(currentLevel.lives).fill(0).map((_,i)=>`<span>${i<lives?'❤️':'🖤'}</span>`).join('');
+  document.getElementById('hint-badge').textContent=progress.hints;
+}
+
+// GAME FLOW
+function tapArrow(r,c){
+  if(animating)return;if(!board[r][c])return;
+  if(canRemove(r,c)){
+    animating=true;snd('remove');
+    const grp=document.querySelector(`.arrow-group[data-r="${r}"][data-c="${c}"]`);
+    if(grp){grp.style.transition='opacity .3s, transform .3s';grp.style.opacity='0';const[dr,dc]=DIRS[board[r][c].d];grp.style.transform=`translate(${dc*40}px,${dr*40}px)`}
+    setTimeout(()=>{board[r][c]=null;renderArrows();updateInfo();animating=false;if(countRemaining()===0)onWin()},320);
+  }else{
+    wrongMoves++;lives--;snd('error');
+    const grp=document.querySelector(`.arrow-group[data-r="${r}"][data-c="${c}"]`);
+    if(grp){grp.querySelectorAll('path,polygon').forEach(el=>{el.style.transition='none';el.style.stroke='var(--error)';el.style.fill='var(--error)';setTimeout(()=>{el.style.transition='stroke .5s, fill .5s';el.style.stroke='';el.style.fill=''},400)})}
+    updateInfo();if(lives<=0)setTimeout(onLose,400);
+  }
+}
+
+function useHint(){if(progress.hints<=0){alert('No hints left!');return}const h=findBestHint();if(!h)return;progress.hints--;saveP();const grp=document.querySelector(`.arrow-group[data-r="${h.r}"][data-c="${h.c}"]`);if(grp){grp.querySelectorAll('path,polygon').forEach(el=>{el.style.stroke='var(--hint)';el.style.fill='var(--hint)';el.style.filter='drop-shadow(0 0 4px var(--hint))';el.style.transition='all .3s'});setTimeout(()=>{grp.querySelectorAll('path,polygon').forEach(el=>{el.style.stroke='';el.style.fill='';el.style.filter='';el.style.transition='all .5s'})},2500)}updateInfo()}
+function onWin(){const stars=wrongMoves===0?3:wrongMoves<=2?2:1;const key=`${currentLevel.diff}_${currentLevel.localId}`;progress.completed[key]=true;progress.stars[key]=Math.max(progress.stars[key]||0,stars);if(currentLevel.localId>=progress.unlocked[currentLevel.diff])progress.unlocked[currentLevel.diff]=currentLevel.localId+1;saveP();document.getElementById('win-info').textContent=`Level ${currentLevel.localId} • ${wrongMoves} wrong move${wrongMoves!==1?'s':''}`;const sEl=document.getElementById('win-stars');sEl.innerHTML='';for(let i=0;i<3;i++){const s=document.createElement('span');s.textContent='⭐';s.className=i<stars?'earned':'';s.style.animationDelay=i*.15+'s';sEl.appendChild(s)}document.getElementById('overlay-win').classList.add('show');snd('win');confetti()}
+function onLose(){document.getElementById('lose-info').textContent=`Level ${currentLevel.localId}`;document.getElementById('overlay-lose').classList.add('show')}
+function startLevel(diff,localId){currentDiff=diff;currentLevel=genLevel(diff,localId);board=Array.from({length:currentLevel.rows},()=>Array(currentLevel.cols).fill(null));for(const a of currentLevel.arrows)board[a.r][a.c]={d:a.d,r:a.r,c:a.c,path:a.path};lives=currentLevel.lives;wrongMoves=0;animating=false;document.getElementById('overlay-win').classList.remove('show');document.getElementById('overlay-lose').classList.remove('show');show('game');renderDots();renderArrows();updateInfo()}
+function nextLevel(){document.getElementById('overlay-win').classList.remove('show');startLevel(currentDiff,currentLevel.localId+1)}
+function replay(){document.getElementById('overlay-win').classList.remove('show');document.getElementById('overlay-lose').classList.remove('show');startLevel(currentDiff,currentLevel.localId)}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('overlay-win').classList.remove('show');document.getElementById('overlay-lose').classList.remove('show');if(id==='home'||id==='difficulty')renderHome()}
+function renderHome(){document.getElementById('h-done').textContent=Object.keys(progress.completed).length;document.getElementById('h-stars').textContent=totalStars();document.getElementById('h-hints').textContent=progress.hints}
+function showLevels(diff){currentDiff=diff;show('levels');document.getElementById('levels-title').textContent=diff.charAt(0).toUpperCase()+diff.slice(1);const grid=document.getElementById('levels-grid');grid.innerHTML='';for(let id=1;id<=100;id++){const key=`${diff}_${id}`;const unlocked=id<=progress.unlocked[diff];const done=progress.completed[key];const stars=progress.stars[key]||0;const t=document.createElement('div');t.className='level-tile'+(!unlocked?' locked':'')+(done?' done':'');t.innerHTML=`<span>${unlocked?id:'🔒'}</span>${stars?'<div class="stars">'+'⭐'.repeat(stars)+'</div>':''}`;if(unlocked)t.onclick=()=>startLevel(diff,id);grid.appendChild(t)}}
+function toggleTheme(){const d=document.body.getAttribute('data-theme')==='dark';document.body.setAttribute('data-theme',d?'':'dark');localStorage.setItem('ap-theme',d?'light':'dark')}
+(function(){const t=localStorage.getItem('ap-theme');if(t==='dark')document.body.setAttribute('data-theme','dark');renderHome()})();
+</script>
+</body>
+</html>
